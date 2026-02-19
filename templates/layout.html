@@ -314,8 +314,18 @@
                     if (!isFirstLoad && data.count > lastNotifCount && "Notification" in window && Notification.permission === "granted") {
                         const newCount = data.count - lastNotifCount;
                         const latest = data.notifications[0];
-                        new Notification("New Submission - AptitudePro", {
-                            body: `${latest.student_name} and ${newCount - 1} others finished questions.`,
+                        let bodyText = '';
+                        if (newCount === 1) {
+                            if (latest.type === 'submission') bodyText = `${latest.student_name} submitted a solution.`;
+                            else if (latest.type === 'login') bodyText = `${latest.student_name} logged in.`;
+                            else if (latest.type === 'access') bodyText = `${latest.student_name} accessed the portal.`;
+                            else bodyText = `New activity from ${latest.student_name}.`;
+                        } else {
+                            bodyText = `${latest.student_name} and ${newCount - 1} others had new activity.`;
+                        }
+
+                        new Notification("Student Activity - AptitudePro", {
+                            body: bodyText,
                             icon: "/static/favicon.ico"
                         });
                     }
