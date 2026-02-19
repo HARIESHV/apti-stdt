@@ -328,18 +328,37 @@
 
                     let html = '';
                     data.notifications.forEach(n => {
+                        let typeTag = '';
+                        let content = '';
+                        let statusLine = '';
+
+                        if (n.type === 'submission') {
+                            typeTag = `<span style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.1); color: var(--accent); padding: 1px 6px; border-radius: 4px; font-weight: 800;">SUBMISSION</span>`;
+                            content = `Finished: <span style="color: var(--primary);">${n.question_text}</span>`;
+                            statusLine = `<div style="font-size: 0.75rem; font-weight: 700; color: ${n.is_correct ? 'var(--accent)' : 'var(--danger)'}">
+                                            ${n.is_correct ? 'CORRECT ✓' : 'INCORRECT ✗'}
+                                          </div>`;
+                        } else if (n.type === 'login') {
+                            typeTag = `<span style="font-size: 0.65rem; background: rgba(99, 102, 241, 0.1); color: var(--primary); padding: 1px 6px; border-radius: 4px; font-weight: 800;">LOGIN</span>`;
+                            content = `<span style="color: var(--text-dim);">${n.message}</span>`;
+                        } else if (n.type === 'access') {
+                            typeTag = `<span style="font-size: 0.65rem; background: rgba(139, 92, 246, 0.1); color: var(--secondary); padding: 1px 6px; border-radius: 4px; font-weight: 800;">ACCESS</span>`;
+                            content = `<span style="color: var(--text-dim);">${n.message}</span>`;
+                        }
+
                         html += `
                             <div class="notification-item">
-                                <div style="display: flex; justify-content: space-between; align-items: start;">
-                                    <strong style="color: var(--text-main); font-size: 0.85rem;">${n.student_name}</strong>
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 2px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <strong style="color: var(--text-main); font-size: 0.85rem;">${n.student_name}</strong>
+                                        ${typeTag}
+                                    </div>
                                     <span style="font-size: 0.7rem; color: var(--text-dim);">${n.created_at}</span>
                                 </div>
-                                <div style="font-size: 0.8rem; color: var(--text-dim); line-height: 1.4;">
-                                    Finished: <span style="color: var(--primary);">${n.question_text}</span>
+                                <div style="font-size: 0.8rem; line-height: 1.4;">
+                                    ${content}
                                 </div>
-                                <div style="font-size: 0.75rem; font-weight: 700; color: ${n.is_correct ? 'var(--accent)' : 'var(--danger)'}">
-                                    ${n.is_correct ? 'CORRECT ✓' : 'INCORRECT ✗'}
-                                </div>
+                                ${statusLine}
                             </div>
                         `;
                     });

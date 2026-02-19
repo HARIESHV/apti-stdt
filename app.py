@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, send_file, send_from_directory
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, send_file, send_from_directory, session
 from pymongo import MongoClient
 from bson import ObjectId
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -132,7 +132,20 @@ def login():
         user_data = db.users.find_one({'username': username})
         
         if user_data and check_password_hash(user_data['password'], password):
-            login_user(MongoUser(user_data))
+            user = MongoUser(user_data)
+            login_user(user)
+            
+            # 🔔 Notify admin if it's a student
+            if user.role == 'student':
+                db.notifications.insert_one({
+                    'type': 'login',
+                    'student_id': user.id,
+                    'student_name': user.full_name or user.username,
+                    'activity': 'Logged into the system',
+                    'read': False,
+                    'created_at': datetime.utcnow()
+                })
+            
             return redirect(url_for('index'))
         flash('Invalid credentials')
     return render_template('login.html')
@@ -390,6 +403,18 @@ def delete_meet_link(link_id):
 @login_required
 def student_dashboard():
     if current_user.role != 'student': return redirect(url_for('admin_dashboard'))
+    
+    # 🔔 Notify admin on first access in this session
+    if not session.get('active_access_notified'):
+        db.notifications.insert_one({
+            'type': 'access',
+            'student_id': current_user.id,
+            'student_name': current_user.full_name or current_user.username,
+            'activity': 'Accessed the portal',
+            'read': False,
+            'created_at': datetime.utcnow()
+        })
+        session['active_access_notified'] = True
     questions = fix_ids(list(db.questions.find().sort('created_at', -1)))
     answers_list = list(db.answers.find({'student_id': current_user.id}))
     user_answers = {a['question_id']: fix_id(a) for a in answers_list}
@@ -539,13 +564,22 @@ def get_notifications():
     notifs = list(db.notifications.find({'read': False}).sort('created_at', -1).limit(20))
     result = []
     for n in notifs:
-        result.append({
+        notif_data = {
             'id': str(n['_id']),
             'student_name': n.get('student_name', 'Unknown'),
-            'question_text': n.get('question_text', ''),
-            'is_correct': n.get('is_correct'),
+            'type': n.get('type', 'submission'),
             'created_at': n['created_at'].strftime('%H:%M') if n.get('created_at') else ''
-        })
+        }
+        
+        if n.get('type') == 'submission':
+            notif_data['question_text'] = n.get('question_text', '')
+            notif_data['is_correct'] = n.get('is_correct')
+        elif n.get('type') == 'login':
+            notif_data['message'] = 'Logged into the system'
+        elif n.get('type') == 'access':
+            notif_data['message'] = 'Just accessed the portal'
+            
+        result.append(notif_data)
     return jsonify({'notifications': result, 'count': len(result)})
 
 @app.route('/admin/notifications/mark_read', methods=['POST'])
