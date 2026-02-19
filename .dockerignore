@@ -1,0 +1,13 @@
+.git
+.venv
+.env
+.agent
+__pycache__
+*.pyc
+*.pyo
+*.db
+*.log
+uploads/*
+static/question_images/*
+node_modules
+.vercel
