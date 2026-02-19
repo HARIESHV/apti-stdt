@@ -22,7 +22,6 @@ EXPOSE 5000
 # Define environment variables
 ENV FLASK_APP=app.py
 ENV PORT=5000
-ENV MONGO_URI=mongodb://mongodb:27017/aptipro
 
 # Run app.py when the container launches
 # Waitress is used inside app.py so this is production-ready

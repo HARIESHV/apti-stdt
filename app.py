@@ -27,9 +27,39 @@ app.config['QUESTION_IMAGE_FOLDER'] = 'static/question_images'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
 # MongoDB Configuration
-MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/aptipro')
-client = MongoClient(MONGO_URI)
-db = client.get_database() # Get database from URI or default
+MONGO_URI = os.environ.get('MONGO_URI', os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/aptipro'))
+
+def get_database():
+    import time
+    from pymongo.errors import ServerSelectionTimeoutError
+    
+    # Render Troubleshooting: If 'mongodb' hostname is failing, it's likely because 
+    # no internal network is found. We retry a few times then provide a clear error.
+    for attempt in range(5):
+        try:
+            print(f"Connecting to MongoDB (Attempt {attempt + 1}/5)...")
+            temp_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+            # The ping command is cheap and confirms a working connection
+            temp_client.admin.command('ping')
+            print("Successfully connected to MongoDB!")
+            return temp_client.get_database()
+        except Exception as e:
+            print(f"Connection failed: {e}")
+            if attempt < 4:
+                time.sleep(5)
+            else:
+                print("\n" + "="*50)
+                print("❌ DATABASE CONNECTION ERROR")
+                print("="*50)
+                print(f"Target: {MONGO_URI}")
+                print("\nIf you are deploying to RENDER, you MUST:")
+                print("1. Go to your Dashboard -> Environment")
+                print("2. Add 'MONGO_URI' with your real MongoDB Atlas connection string.")
+                print("3. Example: mongodb+srv://user:pass@cluster.mongodb.net/aptipro")
+                print("="*50 + "\n")
+                raise e
+
+db = get_database()
 
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
