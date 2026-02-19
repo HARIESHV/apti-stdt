@@ -173,9 +173,14 @@
                     </div>
                     <div style="font-size: 0.8rem; color: var(--primary);">@{{ user.username }}</div>
                 </div>
-                <div
-                    style="margin-left: auto; font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; padding: 0.2rem 0.6rem; background: rgba(255,255,255,0.05); border-radius: 1rem; font-weight: 700;">
-                    {{ user.role }}
+                <div style="margin-left: auto; text-align: right;">
+                    <div
+                        style="font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; padding: 0.2rem 0.6rem; background: rgba(255,255,255,0.05); border-radius: 1rem; font-weight: 700; display: inline-block; margin-bottom: 4px;">
+                        {{ user.role }}
+                    </div>
+                    <div style="font-size: 0.7rem; color: var(--primary); font-weight: 600;">
+                        {{ user.created_at.strftime('%H:%M %b %d') if user.created_at else 'Legacy' }}
+                    </div>
                 </div>
             </div>
             {% endfor %}
