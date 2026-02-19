@@ -1,3 +1,8 @@
+# --- DEPLOYMENT NOTICE (v2.0) ---
+# If you see this in your logs, you ARE running the latest version!
+# ERROR: "mongodb: Name or service not known" means you need to add 
+# MONGO_URI to your Render Environment variables with a real DB link.
+# -------------------------------
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, send_file, send_from_directory, session
 from pymongo import MongoClient
 from bson import ObjectId

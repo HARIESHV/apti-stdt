@@ -16,13 +16,8 @@ COPY . .
 # Create directories for persistent data
 RUN mkdir -p uploads static/question_images
 
-# Make port 5000 available to the world outside this container
+# Expose the port from the environment or default to 5000
 EXPOSE 5000
 
-# Define environment variables
-ENV FLASK_APP=app.py
-ENV PORT=5000
-
-# Run app.py when the container launches
-# Waitress is used inside app.py so this is production-ready
+# Run app.py
 CMD ["python", "app.py"]
