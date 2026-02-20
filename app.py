@@ -34,11 +34,11 @@ if not MONGO_URI:
     MONGO_URI = 'mongodb://localhost:27017/aptipro'
 else:
     # Mask credentials for safety
-    masked_uri = MONGO_URI.split('@')[-1] if '@' in MONGO_URI else 'Secret Cluster'
+    masked_uri = MONGO_URI.split('@')[-1] if '@' in MONGO_URI else 'Cloud Cluster'
     print(f"✅ Success: Connecting to Cloud MongoDB: {masked_uri}")
 
 # Added timeout to prevent long hangs during deployment
-client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000) # Increased timeout for cloud
+client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
 db = client.get_database()
 
 # --- Initialization ---
