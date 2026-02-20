@@ -28,7 +28,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
 # MongoDB Configuration
 # Directly integrated connection string as requested
-MONGO_URI = os.environ.get('MONGO_URI', "mongodb+srv://vhari032007_db_user:Hari%402007@uug5449.mongodb.net/aptipro?retryWrites=true&w=majority")
+MONGO_URI = os.environ.get('MONGO_URI', "mongodb+srv://vhari032007_db_user:Hari%402007@cluster0.uug5449.mongodb.net/aptipro?retryWrites=true&w=majority&appName=Cluster0")
 
 if "localhost" in MONGO_URI:
     print("⚠️ WARNING: Using localhost fallback.")
