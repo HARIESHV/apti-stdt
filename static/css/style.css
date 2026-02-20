@@ -108,6 +108,21 @@ body {
     transform: translateY(0);
 }
 
+.btn-back {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    font-weight: 700;
+    padding: 0.6rem 1.2rem;
+}
+
+.btn-back:hover {
+    background: rgba(99, 102, 241, 0.2) !important;
+    color: white !important;
+    transform: translateX(-5px);
+    border-color: var(--primary);
+}
+
 /* Forms */
 input[type="text"],
 input[type="password"],

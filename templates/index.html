@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AptitudePro - Entrance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Welcome to AptitudePro</h1>
+        <p>Enhance your skills with our level-wise aptitude test. Please enter your name to begin.</p>
+
+        <form action="{{ url_for('login') }}" method="POST">
+            <div class="form-group">
+                <label for="username">Your Name</label>
+                <input type="text" id="username" name="username" placeholder="e.g. John Doe" required autofocus>
+            </div>
+            <button type="submit" class="btn">Start Quiz</button>
+        </form>
+    </div>
+</body>
+
+</html>

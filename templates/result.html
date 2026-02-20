@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Completed!</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Congratulations, {{ username }}!</h1>
+        <p>You have completed the aptitude test.</p>
+
+        <div class="score-badge">
+            {{ score }} / {{ total }}
+        </div>
+
+        <p>Your score is based on your correct answers across all levels.</p>
+
+        <div style="margin-top: 30px;">
+            <a href="{{ url_for('index', reset=1) }}" class="btn">Try Again</a>
+            <a href="{{ url_for('logout') }}"
+                style="display: block; margin-top: 15px; color: #666; text-decoration: none;">Exit Session</a>
+        </div>
+    </div>
+</body>
+
+</html>

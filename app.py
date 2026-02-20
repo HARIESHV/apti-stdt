@@ -1,9 +1,4 @@
-# --- DEPLOYMENT NOTICE (v2.0) ---
-# If you see this in your logs, you ARE running the latest version!
-# ERROR: "mongodb: Name or service not known" means you need to add 
-# MONGO_URI to your Render Environment variables with a real DB link.
-# -------------------------------
-from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, send_file, send_from_directory, session
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, send_file, send_from_directory
 from pymongo import MongoClient
 from bson import ObjectId
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -32,39 +27,10 @@ app.config['QUESTION_IMAGE_FOLDER'] = 'static/question_images'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
 # MongoDB Configuration
-MONGO_URI = os.environ.get('MONGO_URI', os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/aptipro'))
-
-def get_database():
-    import time
-    from pymongo.errors import ServerSelectionTimeoutError
-    
-    # Render Troubleshooting: If 'mongodb' hostname is failing, it's likely because 
-    # no internal network is found. We retry a few times then provide a clear error.
-    for attempt in range(5):
-        try:
-            print(f"Connecting to MongoDB (Attempt {attempt + 1}/5)...")
-            temp_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-            # The ping command is cheap and confirms a working connection
-            temp_client.admin.command('ping')
-            print("Successfully connected to MongoDB!")
-            return temp_client.get_database()
-        except Exception as e:
-            print(f"Connection failed: {e}")
-            if attempt < 4:
-                time.sleep(5)
-            else:
-                print("\n" + "="*50)
-                print("❌ DATABASE CONNECTION ERROR")
-                print("="*50)
-                print(f"Target: {MONGO_URI}")
-                print("\nIf you are deploying to RENDER, you MUST:")
-                print("1. Go to your Dashboard -> Environment")
-                print("2. Add 'MONGO_URI' with your real MongoDB Atlas connection string.")
-                print("3. Example: mongodb+srv://user:pass@cluster.mongodb.net/aptipro")
-                print("="*50 + "\n")
-                raise e
-
-db = get_database()
+MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/aptipro')
+print(f"Connecting to MongoDB: {MONGO_URI.split('@')[-1] if '@' in MONGO_URI else 'Localhost'}")
+client = MongoClient(MONGO_URI)
+db = client.get_database() # Get database from URI or default
 
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -167,20 +133,7 @@ def login():
         user_data = db.users.find_one({'username': username})
         
         if user_data and check_password_hash(user_data['password'], password):
-            user = MongoUser(user_data)
-            login_user(user)
-            
-            # 🔔 Notify admin if it's a student
-            if user.role == 'student':
-                db.notifications.insert_one({
-                    'type': 'login',
-                    'student_id': user.id,
-                    'student_name': user.full_name or user.username,
-                    'activity': 'Logged into the system',
-                    'read': False,
-                    'created_at': datetime.utcnow()
-                })
-            
+            login_user(MongoUser(user_data))
             return redirect(url_for('index'))
         flash('Invalid credentials')
     return render_template('login.html')
@@ -438,18 +391,6 @@ def delete_meet_link(link_id):
 @login_required
 def student_dashboard():
     if current_user.role != 'student': return redirect(url_for('admin_dashboard'))
-    
-    # 🔔 Notify admin on first access in this session
-    if not session.get('active_access_notified'):
-        db.notifications.insert_one({
-            'type': 'access',
-            'student_id': current_user.id,
-            'student_name': current_user.full_name or current_user.username,
-            'activity': 'Accessed the portal',
-            'read': False,
-            'created_at': datetime.utcnow()
-        })
-        session['active_access_notified'] = True
     questions = fix_ids(list(db.questions.find().sort('created_at', -1)))
     answers_list = list(db.answers.find({'student_id': current_user.id}))
     user_answers = {a['question_id']: fix_id(a) for a in answers_list}
@@ -599,22 +540,13 @@ def get_notifications():
     notifs = list(db.notifications.find({'read': False}).sort('created_at', -1).limit(20))
     result = []
     for n in notifs:
-        notif_data = {
+        result.append({
             'id': str(n['_id']),
             'student_name': n.get('student_name', 'Unknown'),
-            'type': n.get('type', 'submission'),
+            'question_text': n.get('question_text', ''),
+            'is_correct': n.get('is_correct'),
             'created_at': n['created_at'].strftime('%H:%M') if n.get('created_at') else ''
-        }
-        
-        if n.get('type') == 'submission':
-            notif_data['question_text'] = n.get('question_text', '')
-            notif_data['is_correct'] = n.get('is_correct')
-        elif n.get('type') == 'login':
-            notif_data['message'] = 'Logged into the system'
-        elif n.get('type') == 'access':
-            notif_data['message'] = 'Just accessed the portal'
-            
-        result.append(notif_data)
+        })
     return jsonify({'notifications': result, 'count': len(result)})
 
 @app.route('/admin/notifications/mark_read', methods=['POST'])

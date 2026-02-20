@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "level": 1,
+    "question": "If a trainer can train 5 athletes in 2 hours, how many athletes can he train in 8 hours?",
+    "options": [
+      "10 athletes",
+      "15 athletes",
+      "20 athletes",
+      "25 athletes"
+    ],
+    "answer": "20 athletes"
+  },
+  {
+    "id": 2,
+    "level": 1,
+    "question": "What is the next number in the sequence: 2, 6, 12, 20, 30, ...?",
+    "options": [
+      "38",
+      "40",
+      "42",
+      "44"
+    ],
+    "answer": "42"
+  },
+  {
+    "id": 3,
+    "level": 2,
+    "question": "Find the average of first five multiples of 3.",
+    "options": [
+      "3",
+      "9",
+      "12",
+      "15"
+    ],
+    "answer": "9"
+  },
+  {
+    "id": 4,
+    "level": 2,
+    "question": "A clock strikes 4 taking 9 seconds. In order to strike 12 at the same rate, the time taken is?",
+    "options": [
+      "33 seconds",
+      "30 seconds",
+      "27 seconds",
+      "36 seconds"
+    ],
+    "answer": "33 seconds"
+  },
+  {
+    "id": 5,
+    "level": 3,
+    "question": "A sum of money at compound interest amounts to thrice itself in 3 years. In how many years will it be 9 times itself?",
+    "options": [
+      "6 years",
+      "9 years",
+      "12 years",
+      "15 years"
+    ],
+    "answer": "6 years"
+  }
+]

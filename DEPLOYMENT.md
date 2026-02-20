@@ -24,15 +24,16 @@ AptitudePro is a Flask-based aptitude quiz platform with separate portals for st
 2. Click **"New +"** → **"Web Service"**
 3. Connect your GitHub repository
 4. Configure the service:
-   - **Name**: `aptitudepro` (or your choice)
+   - **Name**: `aptitudepro`
    - **Environment**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `python app.py`
    - **Instance Type**: Free
 
-5. Add Environment Variables:
+5. **Environment Variables (CRITICAL)**:
    - Click **"Advanced"** → **"Add Environment Variable"**
-   - Add: `SECRET_KEY` = `your-super-secret-random-key-here-change-this`
+   - **`SECRET_KEY`**: a long random string
+   - **`MONGO_URI`**: Your MongoDB Atlas Connection String
 
 6. Click **"Create Web Service"**
 
@@ -43,13 +44,12 @@ AptitudePro is a Flask-based aptitude quiz platform with separate portals for st
 ## ⚠️ Important Notes
 
 ### Database Persistence
-- **Current Setup**: Uses SQLite (`answer.db`)
-- **Issue**: On Render's free tier, SQLite data is ephemeral (resets on restart)
-- **Solution**: Upgrade to PostgreSQL for persistent data:
-  1. In Render dashboard, create a new PostgreSQL database
-  2. Copy the "Internal Database URL"
-  3. Update environment variable: `DATABASE_URL` = `<your-postgres-url>`
-  4. Update `app.py` line 12 to use `os.environ.get('DATABASE_URL', 'sqlite:///answer.db')`
+- **Current Setup**: This website uses **MongoDB**.
+- **Issue**: `localhost:27017` only works on your own computer.
+- **Solution**: Use **MongoDB Atlas** (Free Tier) for hosting your data in the cloud.
+  1. Create a free cluster at [mongodb.com](https://www.mongodb.com/cloud/atlas).
+  2. Whitelist all IPs (`0.0.0.0/0`) in the Atlas Network Access tab.
+  3. Copy your Connection String and add it to Render as an Environment Variable named `MONGO_URI`.
 
 ### Security
 - Change the `SECRET_KEY` in environment variables to a random string

@@ -10,8 +10,7 @@
         <p style="color: var(--text-dim); font-size: 1.1rem;">Full list of student submissions and registered members.
         </p>
     </div>
-    <a href="{{ url_for('admin_dashboard') }}" class="btn"
-        style="padding: 0.75rem 1.5rem; background: var(--secondary); color: white; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);">
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-back">
         <svg style="width:20px; height:20px" viewBox="0 0 24 24">
             <path fill="currentColor" d="M21,11H6.83L10.41,7.41L9,6L3,12L9,18L10.41,16.58L6.83,13H21V11Z" />
         </svg>
@@ -173,14 +172,9 @@
                     </div>
                     <div style="font-size: 0.8rem; color: var(--primary);">@{{ user.username }}</div>
                 </div>
-                <div style="margin-left: auto; text-align: right;">
-                    <div
-                        style="font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; padding: 0.2rem 0.6rem; background: rgba(255,255,255,0.05); border-radius: 1rem; font-weight: 700; display: inline-block; margin-bottom: 4px;">
-                        {{ user.role }}
-                    </div>
-                    <div style="font-size: 0.7rem; color: var(--primary); font-weight: 600;">
-                        {{ user.created_at.strftime('%H:%M %b %d') if user.created_at else 'Legacy' }}
-                    </div>
+                <div
+                    style="margin-left: auto; font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; padding: 0.2rem 0.6rem; background: rgba(255,255,255,0.05); border-radius: 1rem; font-weight: 700;">
+                    {{ user.role }}
                 </div>
             </div>
             {% endfor %}
