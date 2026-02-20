@@ -5,9 +5,12 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 ENV/
 *.db
 instance/
 .env
 uploads/
+static/question_images/
+migrations/
 *.log
