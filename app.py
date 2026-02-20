@@ -29,21 +29,22 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 # --- Database Configuration ---
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-# Debugging for Render
+# Debugging
 if not DATABASE_URL:
-    print("❌ ERROR: DATABASE_URL is not set in environment variables!")
+    print("❌ ERROR: DATABASE_URL is not set!")
 else:
-    print(f"✅ DATABASE_URL detected: {DATABASE_URL[:20]}...")
-
-# Normalize Render's legacy 'postgres://' prefix for SQLAlchemy 1.4+
-if DATABASE_URL:
+    # Auto-inject drivers if missing
     if DATABASE_URL.startswith('postgres://'):
         DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg2://', 1)
     elif DATABASE_URL.startswith('postgresql://') and 'postgresql+psycopg2://' not in DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1)
+    elif DATABASE_URL.startswith('mysql://') and 'mysql+pymysql://' not in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace('mysql://', 'mysql+pymysql://', 1)
+    
+    print(f"✅ Database connected: {DATABASE_URL.split(':')[0]}")
 
 if not DATABASE_URL:
-    raise ValueError("Either 'SQLALCHEMY_DATABASE_URI' or 'SQLALCHEMY_BINDS' must be set. (DATABASE_URL is missing)")
+    raise ValueError("DATABASE_URL is missing. Please set it in .env or Render dashboard.")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
