@@ -27,11 +27,11 @@ app.config['QUESTION_IMAGE_FOLDER'] = 'static/question_images'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
 # MongoDB Configuration
-MONGO_URI = os.environ.get('MONGO_URI')
+# Directly integrated connection string as requested
+MONGO_URI = os.environ.get('MONGO_URI', "mongodb+srv://vhari032007_db_user:Hari%402007@uug5449.mongodb.net/aptipro?retryWrites=true&w=majority")
 
-if not MONGO_URI:
-    print("⚠️ WARNING: MONGO_URI environment variable not found. Falling back to localhost.")
-    MONGO_URI = 'mongodb://localhost:27017/aptipro'
+if "localhost" in MONGO_URI:
+    print("⚠️ WARNING: Using localhost fallback.")
 else:
     # Mask credentials for safety
     masked_uri = MONGO_URI.split('@')[-1] if '@' in MONGO_URI else 'Cloud Cluster'
