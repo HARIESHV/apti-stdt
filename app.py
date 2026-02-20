@@ -27,14 +27,12 @@ app.config['QUESTION_IMAGE_FOLDER'] = 'static/question_images'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
 # --- Database Configuration ---
-DATABASE_URL = os.environ.get('DATABASE_URL', 'mysql+pymysql://root:@localhost:3306/aptipro')
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
-# Handle Dialects for SQLAlchemy 2.0+
-if DATABASE_URL.startswith('postgres://'):
-    # Render legacy prefix
+# Normalize Render's legacy 'postgres://' prefix for SQLAlchemy 1.4+
+if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg2://', 1)
-elif DATABASE_URL.startswith('postgresql://'):
-    # Ensure psycopg2 driver is specified for Postgres
+elif DATABASE_URL and DATABASE_URL.startswith('postgresql://'):
     DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
@@ -76,7 +74,7 @@ def init_db():
             db.session.rollback()
             print(f"⚠️ DATABASE ERROR during init: {e}")
 
-init_db()
+# init_db()  # Commented out to prevent crashes on Render. Run manually or via CLI.
 
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
