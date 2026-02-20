@@ -26,11 +26,16 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['QUESTION_IMAGE_FOLDER'] = 'static/question_images'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
-# --- MySQL Configuration ---
+# --- Database Configuration ---
 DATABASE_URL = os.environ.get('DATABASE_URL', 'mysql+pymysql://root:@localhost:3306/aptipro')
-# Normalize legacy postgres:// URLs (for Render compatibility if ever switched back)
+
+# Handle Dialects for SQLAlchemy 2.0+
 if DATABASE_URL.startswith('postgres://'):
+    # Render legacy prefix
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg2://', 1)
+elif DATABASE_URL.startswith('postgresql://'):
+    # Ensure psycopg2 driver is specified for Postgres
+    DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
