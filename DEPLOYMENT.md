@@ -27,7 +27,7 @@ AptitudePro is a Flask-based aptitude quiz platform with separate portals for st
    - **Name**: `aptitudepro`
    - **Environment**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `python app.py`
+   - **Start Command**: `gunicorn app:app`
    - **Instance Type**: Free
 
 5. **Environment Variables (CRITICAL)**:

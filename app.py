@@ -28,9 +28,49 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
 # MongoDB Configuration
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/aptipro')
-print(f"Connecting to MongoDB: {MONGO_URI.split('@')[-1] if '@' in MONGO_URI else 'Localhost'}")
-client = MongoClient(MONGO_URI)
-db = client.get_database() # Get database from URI or default
+# Safely log URI for debugging (masking credentials)
+masked_uri = MONGO_URI.split('@')[-1] if '@' in MONGO_URI else 'Localhost'
+print(f"Connecting to MongoDB: {masked_uri}")
+
+# Added timeout to prevent long hangs during deployment
+client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+db = client.get_database()
+
+# --- Initialization ---
+
+def init_db():
+    try:
+        # Check if database is reachable
+        client.admin.command('ping')
+        
+        db.users.create_index("username", unique=True)
+        db.answers.create_index([("student_id", 1), ("question_id", 1)])
+        db.attempts.create_index([("student_id", 1), ("question_id", 1)], unique=True)
+        
+        # Initialize Classroom
+        if not db.classroom.find_one():
+            db.classroom.insert_one({
+                'active_meet_link': 'https://meet.google.com/',
+                'detected_title': 'Official Classroom',
+                'is_live': False,
+                'updated_at': datetime.utcnow()
+            })
+        
+        # Check for default admin
+        if db.users.count_documents({'role': 'admin'}) == 0:
+            db.users.insert_one({
+                'username': 'admin',
+                'full_name': 'Administrator',
+                'password': generate_password_hash('admin123'),
+                'role': 'admin',
+                'created_at': datetime.utcnow()
+            })
+            print("Default admin created: admin / admin123")
+    except Exception as e:
+        print(f"⚠️ DATABASE ERROR during init: {e}")
+        print("Continuing startup... DB functions will fail until connection is resolved.")
+
+init_db()
 
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -82,37 +122,6 @@ def load_user(user_id):
         return MongoUser(user_data) if user_data else None
     except:
         return None
-
-# --- Initialization ---
-
-def init_db():
-    db.users.create_index("username", unique=True)
-    db.answers.create_index([("student_id", 1), ("question_id", 1)])
-    db.attempts.create_index([("student_id", 1), ("question_id", 1)], unique=True)
-    
-    # Initialize Classroom
-    if not db.classroom.find_one():
-        db.classroom.insert_one({
-            'active_meet_link': 'https://meet.google.com/',
-            'detected_title': 'Official Classroom',
-            'is_live': False,
-            'updated_at': datetime.utcnow()
-        })
-    
-    # Check for default admin
-    if db.users.count_documents({'role': 'admin'}) == 0:
-        db.users.insert_one({
-            'username': 'admin',
-            'full_name': 'Administrator',
-            'password': generate_password_hash('admin123'),
-            'role': 'admin',
-            'created_at': datetime.utcnow()
-        })
-        print("Default admin created: admin / admin123")
-
-init_db()
-
-# --- Routes ---
 
 @app.route('/')
 def index():
