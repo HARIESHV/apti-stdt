@@ -557,10 +557,8 @@ def download_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
-    from waitress import serve
-    import socket
-    hostname = socket.gethostname()
-    local_ip = socket.gethostbyname(hostname)
-    port = int(os.environ.get('PORT', 5000))
-    print(f"Server starting on http://{local_ip}:{port}")
-    serve(app, host='0.0.0.0', port=port)
+    # Use the PORT environment variable provided by Render, default to 5000 for local dev
+    port = int(os.environ.get("PORT", 5000))
+    print(f"🚀 Server starting on port {port}...")
+    # Bind to 0.0.0.0 to make it accessible externally
+    app.run(host="0.0.0.0", port=port)
