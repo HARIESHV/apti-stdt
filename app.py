@@ -73,7 +73,7 @@ def login_redirect():
 @app.errorhandler(404)
 def not_found_error(error):
     logging.warning(f"404 Not Found: {request.path}")
-    return "Not Found", 404
+    return f"Not Found: {request.path}", 404
 
 @app.errorhandler(500)
 def handle_500(e):
