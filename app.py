@@ -27,24 +27,34 @@ app.config['QUESTION_IMAGE_FOLDER'] = 'static/question_images'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
 # --- Database Configuration ---
+# --- Database Configuration ---
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 # Debugging
 if not DATABASE_URL:
     print("❌ ERROR: DATABASE_URL is not set!")
 else:
-    # Auto-inject drivers if missing
+    # Normalize for SQLAlchemy 1.4+ / 2.0+
     if DATABASE_URL.startswith('postgres://'):
         DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg2://', 1)
-    elif DATABASE_URL.startswith('postgresql://') and 'postgresql+psycopg2://' not in DATABASE_URL:
+    elif DATABASE_URL.startswith('postgresql://'):
         DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1)
-    elif DATABASE_URL.startswith('mysql://') and 'mysql+pymysql://' not in DATABASE_URL:
+    elif DATABASE_URL.startswith('mysql://'):
         DATABASE_URL = DATABASE_URL.replace('mysql://', 'mysql+pymysql://', 1)
     
+    # Render PostgreSQL often requires SSL
+    if 'postgresql' in DATABASE_URL and 'sslmode' not in DATABASE_URL:
+        if '?' in DATABASE_URL:
+            DATABASE_URL += '&sslmode=require'
+        else:
+            DATABASE_URL += '?sslmode=require'
+            
     print(f"✅ Database connected: {DATABASE_URL.split(':')[0]}")
 
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is missing. Please set it in .env or Render dashboard.")
+    # Use a fallback for local dev if .env failed
+    DATABASE_URL = 'mysql+pymysql://root:@localhost:3306/aptipro'
+    print("⚠️ Using local fallback MySQL URL")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

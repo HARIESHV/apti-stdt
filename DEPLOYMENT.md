@@ -33,7 +33,8 @@ AptitudePro is a Flask-based aptitude quiz platform with separate portals for st
 5. **Environment Variables (CRITICAL)**:
    - Click **"Advanced"** → **"Add Environment Variable"**
    - **`SECRET_KEY`**: a long random string
-   - **`MONGO_URI`**: Your MongoDB Atlas Connection String
+   - **`DATABASE_URL`**: Your PostgreSQL Connection String
+     *(Example: `postgresql://user:password@host:5432/dbname`)*
 
 6. Click **"Create Web Service"**
 
@@ -44,12 +45,18 @@ AptitudePro is a Flask-based aptitude quiz platform with separate portals for st
 ## ⚠️ Important Notes
 
 ### Database Persistence
-- **Current Setup**: This website uses **MongoDB**.
-- **Issue**: `localhost:27017` only works on your own computer.
-- **Solution**: Use **MongoDB Atlas** (Free Tier) for hosting your data in the cloud.
-  1. Create a free cluster at [mongodb.com](https://www.mongodb.com/cloud/atlas).
-  2. Whitelist all IPs (`0.0.0.0/0`) in the Atlas Network Access tab.
-  3. Copy your Connection String and add it to Render as an Environment Variable named `MONGO_URI`.
+- **Current Setup**: This website uses **SQL** (PostgreSQL in production, MySQL locally).
+- **Issue**: `localhost` only works on your own computer.
+- **Solution**: Use **Render PostgreSQL** (Free Tier).
+  1. Click **New +** → **PostgreSQL** in Render.
+  2. Copy the **Internal Database URL**.
+  3. Add it to Render Web Service as an Environment Variable named `DATABASE_URL`.
+
+### Initializing the Database (First-time setup)
+When you first deploy to a new database, you need to create the tables:
+1. Go to your Render Dashboard → Web Service → **Shell**.
+2. Run the command: `python init_db.py`
+3. This will create all tables and set up the default admin user.
 
 ### Security
 - Change the `SECRET_KEY` in environment variables to a random string
@@ -76,7 +83,7 @@ Your app is already configured for local network access:
 - Access from any device on your network: `http://YOUR_LOCAL_IP:5000`
 
 ## 🎯 Default Credentials
-- **Admin**: username: `admin`, password: `adminpassword`
+- **Admin**: username: `admin`, password: `admin123`
 - **Students**: Register via `/register` route
 
 ## 📞 Support
