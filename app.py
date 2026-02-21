@@ -571,4 +571,5 @@ if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 Server starting on port {port}...")
     # Bind to 0.0.0.0 to make it accessible externally
-    app.run(host="0.0.0.0", port=port)
+    # debug=True enables the detailed error pages and auto-reload
+    app.run(host="0.0.0.0", port=port, debug=True)
