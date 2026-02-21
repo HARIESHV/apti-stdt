@@ -46,6 +46,11 @@ elif not db_url.startswith('sqlite://') and not db_url.startswith('postgresql://
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {"pool_pre_ping": True}
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=7)
+app.config['SESSION_PERMANENT'] = True
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('PORT') != '5000' # True if on Render (HTTPS)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 from models import db, User, Question, Answer, Attempt, Classroom, MeetLink, Notification
 
@@ -88,7 +93,7 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
-            login_user(user)
+            login_user(user, remember=True)
             return redirect(url_for('index'))
         flash('Invalid credentials', 'danger')
     return render_template('login.html')
@@ -409,6 +414,10 @@ def submit_answer():
     return jsonify({'status': 'success', 'is_correct': is_correct})
 
 if __name__ == '__main__':
+    from waitress import serve
     port = int(os.environ.get("PORT", 5000))
-    # Using threaded=True for better responsiveness
-    app.run(host="0.0.0.0", port=port, debug=True, threaded=True)
+    print(f"🚀 Server starting on port {port}...")
+    print(f"🏠 Home: http://localhost:{port}")
+    # Using Waitress as the production WSGI server to stop the warning
+    # and provide better stability for the login sessions.
+    serve(app, host="0.0.0.0", port=port, threads=10)
