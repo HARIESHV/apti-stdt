@@ -97,7 +97,10 @@ def health():
 @app.route('/')
 def index():
     if current_user.is_authenticated:
-        return redirect(url_for('admin_dashboard' if current_user.role == 'admin' else 'student_dashboard'))
+        target = 'admin_dashboard' if current_user.role == 'admin' else 'student_dashboard'
+        logging.info(f"User {current_user.username} authenticated, redirecting to {target}")
+        return redirect(url_for(target))
+    logging.info("User not authenticated, redirecting to login")
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -107,8 +110,12 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
+            logging.info(f"Login success for user: {username} (Role: {user.role})")
             login_user(user, remember=True)
-            return redirect(url_for('index'))
+            target = url_for('index')
+            logging.info(f"Redirecting to: {target}")
+            return redirect(target)
+        logging.warning(f"Login failed for user: {username}")
         flash('Invalid credentials', 'danger')
     return render_template('login.html')
 
