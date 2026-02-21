@@ -26,6 +26,7 @@ logging.basicConfig(
 load_dotenv()
 
 app = Flask(__name__)
+app.url_map.strict_slashes = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(16))
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['QUESTION_IMAGE_FOLDER'] = 'static/question_images'
