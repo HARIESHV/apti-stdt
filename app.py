@@ -28,18 +28,22 @@ if IS_RENDER and not DATABASE_URL:
     DATABASE_URL = "sqlite:///render_fallback.db"
 
 if not DATABASE_URL:
-    # Local fallback to MySQL
-    DATABASE_URL = 'mysql+pymysql://root:@localhost:3306/aptipro'
-    print("🏠 Local mode: Using MySQL")
+    print("❌ FATAL: DATABASE_URL is not set!")
+    print("👉 Please add your Supabase connection string to the .env file.")
+    # Local fallback to SQLite for immediate testing only
+    DATABASE_URL = "sqlite:///supabase_fallback.db"
 else:
-    # Normalizing database URL for SQLAlchemy
+    # Normalize Supabase/PostgreSQL dialect
     if DATABASE_URL.startswith('postgres://'):
         DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg2://', 1)
     elif DATABASE_URL.startswith('postgresql://') and 'postgresql+psycopg2://' not in DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1)
     
+    # Supabase requires SSL for remote connections
     if 'postgresql' in DATABASE_URL and 'sslmode' not in DATABASE_URL:
         DATABASE_URL += ('&' if '?' in DATABASE_URL else '?') + 'sslmode=require'
+    
+    print(f"✅ Supabase connected: {DATABASE_URL.split('@')[1].split(':')[0] if '@' in DATABASE_URL else 'Remote Hub'}")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
