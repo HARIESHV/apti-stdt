@@ -1,13 +1,11 @@
-# 🚀 AptitudePro - Premium Aptitude Platform
+# 🚀 AptitudePro - Firebase Edition 🛰️
 
-AptitudePro is a robust, full-stack aptitude quiz platform featuring dedicated student and administrator portals. It now supports high-performance SQL databases (MySQL and PostgreSQL).
+AptitudePro is a robust, full-stack aptitude quiz platform featuring dedicated student and administrator portals. It is now powered by **Firebase Firestore** for real-time data management.
 
 ## 📂 Project Architecture
 ```text
 apti-stdt/
 ├── app.py              # Main Application (Flask)
-├── models.py           # Database Schema (SQLAlchemy)
-├── init_db.py          # Database Initialization Script
 ├── requirements.txt    # Dependencies
 ├── static/             # Assets (CSS, Images)
 └── templates/          # HTML Templates (Jinja2)
@@ -15,40 +13,37 @@ apti-stdt/
 
 ## ✨ Features
 - **Role-Based Access**: Separate dashboards for Admins and Students.
-- **Hybrid Database**: Automatic switching between MySQL (Local) and PostgreSQL (Cloud).
-- **Time Limits**: Questions can have per-student time restrictions.
-- **Admin Control**: Live classroom management, question posting with images, and submission exports.
-- **Real-time Notifications**: Admins get notified of student submissions.
+- **Real-time Database**: Powered by Google Firebase Firestore.
+- **Admin Control**: Live classroom management, question posting with images, and instant notifications.
 - **Responsive Design**: Premium, glassmorphism-based UI for mobile and desktop.
 
 ## 🛠️ Local Setup
-1. **Prerequisites**: Python 3.x and MySQL.
+1. **Prerequisites**: Python 3.x and Firebase Account.
 2. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
-3. **Configure Environment**:
-   Create/Update `.env`:
+3. **Configure Firebase**:
+   - Download your `serviceAccountKey.json` from Firebase Console.
+   - Place it in the project root folder.
+4. **Configure Environment**:
+   Create a `.env` file:
    ```env
    SECRET_KEY=your_secret_key
-   DATABASE_URL=mysql+pymysql://root:@localhost:3306/aptipro
+   FIREBASE_SERVICE_ACCOUNT_JSON=serviceAccountKey.json
    ```
-4. **Initialize DB**:
-   ```bash
-   python init_db.py
-   ```
-5. **Run App**:
+5. **Initialize Admin**:
+   Run the app:
    ```bash
    python app.py
    ```
-6. **Access**: `http://localhost:5000`
+   Visit `http://localhost:5000/init-admin` to set up the first admin.
 
-## 🌍 Deployment
-Detailed deployment instructions for Render.com can be found in [DEPLOYMENT.md](DEPLOYMENT.md).
+6. **Access**: `http://localhost:5000`
 
 ## 🎯 Default Admin Credentials
 - **Username**: `admin`
 - **Password**: `admin123`
 
 ## 📞 Support
-For issues or feature requests, please contact the developer team.
+For issues or feature requests, contact the developer team.
