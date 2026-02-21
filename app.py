@@ -1,16 +1,15 @@
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, send_file, send_from_directory
-from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import os
 import secrets
 import csv
-import json
 from io import StringIO, BytesIO
 from dotenv import load_dotenv
-import firebase_admin
-from firebase_admin import credentials, firestore, storage
 
 load_dotenv()
 
@@ -20,78 +19,58 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['QUESTION_IMAGE_FOLDER'] = 'static/question_images'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# --- Firebase Configuration ---
-service_account_path = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON', 'serviceAccountKey.json')
+# --- Database Configuration ---
+DATABASE_URL = os.environ.get('DATABASE_URL')
+IS_RENDER = os.environ.get('RENDER')
 
-if os.path.exists(service_account_path):
-    cred = credentials.Certificate(service_account_path)
-    firebase_admin.initialize_app(cred, {
-        'storageBucket': os.environ.get('FIREBASE_STORAGE_BUCKET')
-    })
-    print("✅ Firebase initialized with service account.")
+if IS_RENDER and not DATABASE_URL:
+    print("❌ WARNING: DATABASE_URL is not set in Render!")
+    DATABASE_URL = "sqlite:///render_fallback.db"
+
+if not DATABASE_URL:
+    # Local fallback to MySQL
+    DATABASE_URL = 'mysql+pymysql://root:@localhost:3306/aptipro'
+    print("🏠 Local mode: Using MySQL")
 else:
-    firebase_config = os.environ.get('FIREBASE_CONFIG_JSON')
-    if firebase_config:
-        config_dict = json.loads(firebase_config)
-        cred = credentials.Certificate(config_dict)
-        firebase_admin.initialize_app(cred)
-        print("✅ Firebase initialized with environment config.")
-    else:
-        print("⚠️ WARNING: Firebase config not found. App running in restricted mode.")
+    # Normalizing database URL for SQLAlchemy
+    if DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg2://', 1)
+    elif DATABASE_URL.startswith('postgresql://') and 'postgresql+psycopg2://' not in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1)
+    
+    if 'postgresql' in DATABASE_URL and 'sslmode' not in DATABASE_URL:
+        DATABASE_URL += ('&' if '?' in DATABASE_URL else '?') + 'sslmode=require'
 
-db = firestore.client()
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# --- User Class for Flask-Login ---
-class User(UserMixin):
-    def __init__(self, id, data):
-        self.id = str(id)
-        self.username = data.get('username')
-        self.full_name = data.get('full_name')
-        self.role = data.get('role', 'student')
-        self.created_at = data.get('created_at')
+from models import db, User, Question, Answer, Attempt, Classroom, MeetLink, Notification
 
-    @staticmethod
-    def get(user_id):
-        doc = db.collection('users').document(str(user_id)).get()
-        if doc.exists:
-            return User(doc.id, doc.to_dict())
-        return None
+db.init_app(app)
+migrate = Migrate(app, db)
 
-    @staticmethod
-    def find_by_username(username):
-        users = db.collection('users').where('username', '==', username).limit(1).stream()
-        for user in users:
-            return User(user.id, user.to_dict()), user.to_dict().get('password')
-        return None, None
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 # --- Helpers ---
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def doc_to_dict(doc):
-    if not doc or not doc.exists: return None
-    d = doc.to_dict()
-    d['id'] = doc.id
-    # Convert timestamps to datetime objects for templates
-    for k, v in d.items():
-        if hasattr(v, 'timestamp') and not isinstance(v, (int, float, datetime)):
-            # Handle potential Firestore timestamp
-            try: d[k] = v.to_datetime()
-            except: pass
-    return d
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.get(user_id)
-
 # --- Routes ---
+@app.route('/health')
+def health():
+    return jsonify({"status": "online", "database": DATABASE_URL.split(':')[0]})
+
 @app.route('/')
 def index():
     if current_user.is_authenticated:
-        if current_user.role == 'admin':
-            return redirect(url_for('admin_dashboard'))
-        return redirect(url_for('student_dashboard'))
+        return redirect(url_for('admin_dashboard' if current_user.role == 'admin' else 'student_dashboard'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -99,11 +78,11 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        user, hashed_password = User.find_by_username(username)
-        if user and check_password_hash(hashed_password, password):
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password, password):
             login_user(user)
             return redirect(url_for('index'))
-        flash('Invalid username or password', 'danger')
+        flash('Invalid credentials', 'danger')
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -112,20 +91,13 @@ def register():
         username = request.form.get('username')
         full_name = request.form.get('full_name')
         password = request.form.get('password')
-        
-        user, _ = User.find_by_username(username)
-        if user:
-            flash('Username already exists', 'warning')
+        if User.query.filter_by(username=username).first():
+            flash('Username taken', 'warning')
             return redirect(url_for('register'))
-        
-        db.collection('users').add({
-            'username': username,
-            'full_name': full_name,
-            'password': generate_password_hash(password),
-            'role': 'student',
-            'created_at': datetime.utcnow()
-        })
-        flash('Registration successful!', 'success')
+        new_user = User(username=username, full_name=full_name, password=generate_password_hash(password))
+        db.session.add(new_user)
+        db.session.commit()
+        flash('Success!', 'success')
         return redirect(url_for('login'))
     return render_template('register.html')
 
@@ -138,14 +110,11 @@ def logout():
 @login_required
 def admin_dashboard():
     if current_user.role != 'admin': return redirect(url_for('index'))
-    questions = [doc_to_dict(q) for q in db.collection('questions').order_by('created_at', direction=firestore.Query.DESCENDING).stream()]
-    submissions = [doc_to_dict(s) for s in db.collection('answers').order_by('submitted_at', direction=firestore.Query.DESCENDING).limit(10).stream()]
-    all_users = [doc_to_dict(u) for u in db.collection('users').where('role', '==', 'student').stream()]
-    
-    classroom_doc = db.collection('classroom').document('main').get()
-    classroom = doc_to_dict(classroom_doc)
-    
-    meet_links = [doc_to_dict(m) for m in db.collection('meet_links').order_by('created_at', direction=firestore.Query.DESCENDING).stream()]
+    questions = Question.query.order_by(Question.created_at.desc()).all()
+    submissions = Answer.query.order_by(Answer.submitted_at.desc()).limit(10).all()
+    all_users = User.query.filter_by(role='student').all()
+    classroom = Classroom.query.first()
+    meet_links = MeetLink.query.order_by(MeetLink.created_at.desc()).all()
     return render_template('admin_dashboard.html', questions=questions, submissions=submissions, all_users=all_users, classroom=classroom, meet_links=meet_links)
 
 @app.route('/admin/post-question', methods=['GET', 'POST'])
@@ -159,169 +128,62 @@ def post_question():
             if file and allowed_file(file.filename):
                 image_filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['QUESTION_IMAGE_FOLDER'], image_filename))
-
-        db.collection('questions').add({
-            'text': request.form.get('text'),
-            'topic': request.form.get('topic', 'General'),
-            'option_a': request.form.get('option_a'),
-            'option_b': request.form.get('option_b'),
-            'option_c': request.form.get('option_c'),
-            'option_d': request.form.get('option_d'),
-            'correct_answer': request.form.get('correct_answer'),
-            'explanation': request.form.get('explanation'),
-            'meet_link': request.form.get('meet_link'),
-            'time_limit': request.form.get('time_limit', 10, type=int),
-            'image_file': image_filename,
-            'created_at': datetime.utcnow()
-        })
+        
+        q = Question(
+            text=request.form.get('text'),
+            topic=request.form.get('topic', 'General'),
+            option_a=request.form.get('option_a'),
+            option_b=request.form.get('option_b'),
+            option_c=request.form.get('option_c'),
+            option_d=request.form.get('option_d'),
+            correct_answer=request.form.get('correct_answer'),
+            explanation=request.form.get('explanation'),
+            time_limit=request.form.get('time_limit', 10, type=int),
+            image_file=image_filename
+        )
+        db.session.add(q)
+        db.session.commit()
         flash('Question posted!', 'success')
         return redirect(url_for('admin_dashboard'))
     return render_template('post_question.html')
 
-@app.route('/admin/edit-question/<q_id>', methods=['GET', 'POST'])
-@login_required
-def edit_question(q_id):
-    if current_user.role != 'admin': return redirect(url_for('index'))
-    doc_ref = db.collection('questions').document(q_id)
-    if request.method == 'POST':
-        doc_ref.update({
-            'text': request.form.get('text'),
-            'topic': request.form.get('topic'),
-            'option_a': request.form.get('option_a'),
-            'option_b': request.form.get('option_b'),
-            'option_c': request.form.get('option_c'),
-            'option_d': request.form.get('option_d'),
-            'correct_answer': request.form.get('correct_answer'),
-            'explanation': request.form.get('explanation'),
-            'time_limit': request.form.get('time_limit', type=int)
-        })
-        flash('Question updated!', 'success')
-        return redirect(url_for('admin_dashboard'))
-    q = doc_to_dict(doc_ref.get())
-    return render_template('edit_question.html', question=q)
-
-@app.route('/admin/delete-question/<q_id>', methods=['POST'])
-@login_required
-def delete_question(q_id):
-    if current_user.role != 'admin': return redirect(url_for('index'))
-    db.collection('questions').document(q_id).delete()
-    flash('Question deleted.', 'info')
-    return redirect(url_for('admin_dashboard'))
-
-@app.route('/admin/update-classroom', methods=['POST'])
-@login_required
-def update_classroom():
-    if current_user.role != 'admin': return redirect(url_for('index'))
-    link = request.form.get('meet_link')
-    is_live = 'is_live' in request.form
-    db.collection('classroom').document('main').set({
-        'active_meet_link': link,
-        'is_live': is_live,
-        'updated_at': datetime.utcnow()
-    }, merge=True)
-    flash('Classroom status updated.', 'success')
-    return redirect(url_for('admin_dashboard'))
-
 @app.route('/student/dashboard')
 @login_required
 def student_dashboard():
-    # Log student access as notification
-    db.collection('notifications').add({
-        'message': f"Student {current_user.full_name} is active",
-        'type': 'access',
-        'student_id': current_user.id,
-        'student_name': current_user.full_name,
-        'created_at': datetime.utcnow(),
-        'read': False
-    })
-    
-    questions = [doc_to_dict(q) for q in db.collection('questions').order_by('created_at', direction=firestore.Query.DESCENDING).stream()]
-    answers = [doc_to_dict(a) for a in db.collection('answers').where('student_id', '==', current_user.id).stream()]
-    user_answers = {a.get('question_id'): a for a in answers}
-    
-    attempts = [doc_to_dict(at) for at in db.collection('attempts').where('student_id', '==', current_user.id).stream()]
-    user_attempts = {at.get('question_id'): at.get('start_time').timestamp() * 1000 for at in attempts if at.get('start_time')}
-    
-    classroom = doc_to_dict(db.collection('classroom').document('main').get())
+    questions = Question.query.order_by(Question.created_at.desc()).all()
+    answers = Answer.query.filter_by(student_id=current_user.id).all()
+    user_answers = {a.question_id: a for a in answers}
+    attempts = Attempt.query.filter_by(student_id=current_user.id).all()
+    user_attempts = {at.question_id: at.start_time.timestamp() * 1000 for at in attempts}
+    classroom = Classroom.query.first()
     return render_template('student_dashboard.html', questions=questions, user_answers=user_answers, user_attempts=user_attempts, classroom=classroom)
 
-@app.route('/start_attempt/<q_id>')
+@app.route('/start_attempt/<int:question_id>')
 @login_required
-def start_attempt(q_id):
-    attempts = db.collection('attempts').where('student_id', '==', current_user.id).where('question_id', '==', q_id).limit(1).get()
-    if not attempts:
-        now = datetime.utcnow()
-        db.collection('attempts').add({'student_id': current_user.id, 'question_id': q_id, 'start_time': now})
-        return jsonify({'start_time': now.timestamp() * 1000})
-    return jsonify({'start_time': attempts[0].to_dict().get('start_time').timestamp() * 1000})
+def start_attempt(question_id):
+    attempt = Attempt.query.filter_by(student_id=current_user.id, question_id=question_id).first()
+    if not attempt:
+        attempt = Attempt(student_id=current_user.id, question_id=question_id)
+        db.session.add(attempt)
+        db.session.commit()
+    return jsonify({'start_time': attempt.start_time.timestamp() * 1000})
 
 @app.route('/submit_answer', methods=['POST'])
 @login_required
 def submit_answer():
-    q_id = request.form.get('question_id')
+    q_id = request.form.get('question_id', type=int)
     ans = request.form.get('selected_option')
-    q_doc = db.collection('questions').document(q_id).get()
-    if not q_doc.exists: return jsonify({'status': 'error'})
-    q = q_doc.to_dict()
-    is_correct = ans == q.get('correct_answer')
+    q = Question.query.get_or_404(q_id)
+    is_correct = ans == q.correct_answer
     
-    db.collection('answers').add({
-        'student_id': current_user.id,
-        'student_name': current_user.full_name,
-        'question_id': q_id,
-        'selected_option': ans,
-        'is_correct': is_correct,
-        'submitted_at': datetime.utcnow()
-    })
+    answer = Answer(student_id=current_user.id, question_id=q_id, selected_option=ans, is_correct=is_correct)
+    db.session.add(answer)
     
-    db.collection('notifications').add({
-        'message': f"New answer from {current_user.full_name}",
-        'type': 'submission',
-        'student_id': current_user.id,
-        'student_name': current_user.full_name,
-        'question_id': q_id,
-        'is_correct': is_correct,
-        'created_at': datetime.utcnow(),
-        'read': False
-    })
+    notif = Notification(message=f"Submission from {current_user.full_name}", type='submission', student_id=current_user.id, student_name=current_user.full_name, question_id=q_id, is_correct=is_correct)
+    db.session.add(notif)
+    
+    db.session.commit()
     return jsonify({'status': 'success', 'is_correct': is_correct})
-
-@app.route('/admin/get-notifications')
-@login_required
-def get_notifications():
-    if current_user.role != 'admin': return jsonify([])
-    notifs = [doc_to_dict(n) for n in db.collection('notifications').where('read', '==', False).order_by('created_at', direction=firestore.Query.DESCENDING).limit(20).stream()]
-    return jsonify(notifs)
-
-@app.route('/admin/mark-notifications-read', methods=['POST'])
-@login_required
-def mark_notifications_read():
-    if current_user.role != 'admin': return jsonify({'status': 'ok'})
-    batch = db.batch()
-    notifs = db.collection('notifications').where('read', '==', False).stream()
-    for n in notifs:
-        batch.update(n.reference, {'read': True})
-    batch.commit()
-    return jsonify({'status': 'ok'})
-
-@app.route('/init-admin')
-def init_admin():
-    # Set up initial admin and classroom
-    admin_exists = db.collection('users').where('role', '==', 'admin').limit(1).get()
-    if not admin_exists:
-        db.collection('users').add({
-            'username': 'admin',
-            'full_name': 'Administrator',
-            'password': generate_password_hash('admin123'),
-            'role': 'admin',
-            'created_at': datetime.utcnow()
-        })
-    db.collection('classroom').document('main').set({
-        'active_meet_link': 'https://meet.google.com/',
-        'is_live': False,
-        'updated_at': datetime.utcnow()
-    }, merge=True)
-    return "Admin initialized: admin / admin123"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

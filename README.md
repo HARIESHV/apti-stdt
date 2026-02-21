@@ -1,11 +1,13 @@
-# 🚀 AptitudePro - Firebase Edition 🛰️
+# 🚀 AptitudePro - Premium Quiz Platform
 
-AptitudePro is a robust, full-stack aptitude quiz platform featuring dedicated student and administrator portals. It is now powered by **Firebase Firestore** for real-time data management.
+AptitudePro is a full-stack aptitude quiz platform featuring dedicated student and administrator portals. It supports **MySQL** for local development and **PostgreSQL** for cloud deployment (Render).
 
 ## 📂 Project Architecture
 ```text
 apti-stdt/
 ├── app.py              # Main Application (Flask)
+├── models.py           # Database Schema (SQLAlchemy)
+├── init_db.py          # DB Initialization Script
 ├── requirements.txt    # Dependencies
 ├── static/             # Assets (CSS, Images)
 └── templates/          # HTML Templates (Jinja2)
@@ -13,37 +15,31 @@ apti-stdt/
 
 ## ✨ Features
 - **Role-Based Access**: Separate dashboards for Admins and Students.
-- **Real-time Database**: Powered by Google Firebase Firestore.
+- **SQL Backend**: Powered by SQLAlchemy ORM.
+- **Hybrid Database**: Automatic switching between MySQL and PostgreSQL.
 - **Admin Control**: Live classroom management, question posting with images, and instant notifications.
-- **Responsive Design**: Premium, glassmorphism-based UI for mobile and desktop.
 
 ## 🛠️ Local Setup
-1. **Prerequisites**: Python 3.x and Firebase Account.
+1. **Prerequisites**: Python 3.x and MySQL.
 2. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
-3. **Configure Firebase**:
-   - Download your `serviceAccountKey.json` from Firebase Console.
-   - Place it in the project root folder.
-4. **Configure Environment**:
+3. **Configure Environment**:
    Create a `.env` file:
    ```env
    SECRET_KEY=your_secret_key
-   FIREBASE_SERVICE_ACCOUNT_JSON=serviceAccountKey.json
+   DATABASE_URL=mysql+pymysql://root:@localhost:3306/aptipro
    ```
-5. **Initialize Admin**:
-   Run the app:
+4. **Initialize Database**:
+   ```bash
+   python init_db.py
+   ```
+5. **Run App**:
    ```bash
    python app.py
    ```
-   Visit `http://localhost:5000/init-admin` to set up the first admin.
-
-6. **Access**: `http://localhost:5000`
 
 ## 🎯 Default Admin Credentials
 - **Username**: `admin`
 - **Password**: `admin123`
-
-## 📞 Support
-For issues or feature requests, contact the developer team.
