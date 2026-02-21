@@ -20,33 +20,14 @@ app.config['QUESTION_IMAGE_FOLDER'] = 'static/question_images'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 # --- Database Configuration ---
-DATABASE_URL = os.environ.get('DATABASE_URL')
-IS_RENDER = os.environ.get('RENDER')
-
-if IS_RENDER and not DATABASE_URL:
-    print("❌ WARNING: DATABASE_URL is not set in Render!")
-    DATABASE_URL = "sqlite:///render_fallback.db"
-
-if not DATABASE_URL:
-    print("❌ FATAL: DATABASE_URL is not set!")
-    print("👉 Please add your Supabase connection string to the .env file.")
-    # Local fallback to SQLite for immediate testing only
-    DATABASE_URL = "sqlite:///supabase_fallback.db"
-else:
-    # Normalize Supabase/PostgreSQL dialect
-    if DATABASE_URL.startswith('postgres://'):
-        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg2://', 1)
-    elif DATABASE_URL.startswith('postgresql://') and 'postgresql+psycopg2://' not in DATABASE_URL:
-        DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1)
-    
-    # Supabase requires SSL for remote connections
-    if 'postgresql' in DATABASE_URL and 'sslmode' not in DATABASE_URL:
-        DATABASE_URL += ('&' if '?' in DATABASE_URL else '?') + 'sslmode=require'
-    
-    print(f"✅ Supabase connected: {DATABASE_URL.split('@')[1].split(':')[0] if '@' in DATABASE_URL else 'Remote Hub'}")
+# Using SQLite for zero-config and maximum reliability.
+# Locally and on Render, it will use the local.db file.
+DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///local.db')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+print(f"📦 Database: Using SQLite ({DATABASE_URL})")
 
 from models import db, User, Question, Answer, Attempt, Classroom, MeetLink, Notification
 

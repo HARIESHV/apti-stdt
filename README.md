@@ -1,6 +1,6 @@
-# 🚀 AptitudePro - Supabase Edition 🛰️
+# 🚀 AptitudePro - Zero-Config Edition 📦
 
-AptitudePro is a full-stack aptitude quiz platform powered by **Supabase (PostgreSQL)**.
+AptitudePro is a full-stack aptitude quiz platform. It is now powered by **SQLite** for the simplest possible setup—no external servers or passwords required.
 
 ## 📂 Project Architecture
 ```text
@@ -14,22 +14,10 @@ apti-stdt/
 ```
 
 ## ✨ Features
-- **Cloud Infrastructure**: Powered by Supabase's high-performance PostgreSQL.
-- **Admin Dashboard**: Live management and student tracking.
-- **Responsive UI**: Glassmorphism design for all devices.
-
-## 🛠️ Supabase Setup
-1. **Create Project**: Go to [Supabase](https://supabase.com/) and create a new project.
-2. **Get Connection String**:
-   - Go to **Project Settings** -> **Database**.
-   - Copy the **Connection String** (Transaction or Session mode).
-   - Ensure you replace `[YOUR-PASSWORD]` with your actual database password.
-3. **Configure Environment**:
-   Update your `.env` file:
-   ```env
-   SECRET_KEY=your_secret_key
-   DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-ID].supabase.co:5432/postgres
-   ```
+- **Zero-Config**: No need for MySQL, PostgreSQL, or Firebase.
+- **Portable**: Database is stored in a local file called `local.db`.
+- **Admin Dashboard**: Full control over questions and classrooms.
+- **Easy Deployment**: Works instantly on Render without environment variables.
 
 ## 🛠️ Local Installation
 1. **Install Dependencies**:
@@ -44,6 +32,9 @@ apti-stdt/
    ```bash
    python app.py
    ```
+
+## 🌍 Render Deployment
+Just push and deploy! No `DATABASE_URL` environment variables are needed for SQLite.
 
 ## 🎯 Default Admin Credentials
 - **Username**: `admin`
