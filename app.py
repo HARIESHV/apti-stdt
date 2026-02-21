@@ -58,8 +58,21 @@ db.init_app(app)
 migrate = Migrate(app, db)
 
 login_manager = LoginManager()
+@app.before_request
+def log_request_info():
+    logging.info(f"Request: {request.method} {request.path}")
+
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+@app.route('/login/')
+def login_redirect():
+    return redirect(url_for('login'))
+
+@app.errorhandler(404)
+def not_found_error(error):
+    logging.warning(f"404 Not Found: {request.path}")
+    return "Not Found", 404
 
 @app.errorhandler(500)
 def handle_500(e):
