@@ -9,8 +9,19 @@ import os
 import secrets
 import csv
 import json
+import logging
 from io import StringIO, BytesIO
 from dotenv import load_dotenv
+
+# --- Logging Setup ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    handlers=[
+        logging.FileHandler("error.log"),
+        logging.StreamHandler()
+    ]
+)
 
 load_dotenv()
 
@@ -24,9 +35,17 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['QUESTION_IMAGE_FOLDER'], exist_ok=True)
 
 # --- Database Configuration ---
-DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///local.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+# Normalize DATABASE_URL for SQLAlchemy 2.0+ and ensure SQLite fallback
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///local.db')
+if db_url.startswith('postgres://'):
+    db_url = db_url.replace('postgres://', 'postgresql://', 1)
+elif not db_url.startswith('sqlite://') and not db_url.startswith('postgresql://'):
+    # Default to sqlite if the provided URL is invalid or from old migrations
+    db_url = 'sqlite:///local.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {"pool_pre_ping": True}
 
 from models import db, User, Question, Answer, Attempt, Classroom, MeetLink, Notification
 
@@ -36,6 +55,11 @@ migrate = Migrate(app, db)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+@app.errorhandler(500)
+def handle_500(e):
+    logging.error(f"500 Internal Server Error: {e}", exc_info=True)
+    return render_template('layout.html', content="Internal Server Error. Please check logs."), 500
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -49,7 +73,7 @@ def allowed_file(filename):
 # --- Routes ---
 @app.route('/health')
 def health():
-    return jsonify({"status": "online", "database": DATABASE_URL.split(':')[0]})
+    return jsonify({"status": "online", "database": app.config['SQLALCHEMY_DATABASE_URI'].split(':')[0]})
 
 @app.route('/')
 def index():
@@ -80,9 +104,14 @@ def register():
             return redirect(url_for('register'))
         new_user = User(username=username, full_name=full_name, password=generate_password_hash(password))
         db.session.add(new_user)
-        db.session.commit()
-        flash('Success!', 'success')
-        return redirect(url_for('login'))
+        try:
+            db.session.commit()
+            flash('Success!', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Registration Error: {e}")
+            flash('Registration failed', 'danger')
     return render_template('register.html')
 
 @app.route('/logout')
@@ -127,7 +156,7 @@ def post_question():
             option_d=request.form.get('option_d'),
             correct_answer=request.form.get('correct_answer'),
             explanation=request.form.get('explanation'),
-            time_limit=request.form.get('time_limit', 10, type=int),
+            time_limit=request.form.get('time_limit', 10, type=int) or 10,
             image_file=image_filename
         )
         db.session.add(q)
@@ -150,7 +179,7 @@ def edit_question(question_id):
         q.option_d = request.form.get('option_d')
         q.correct_answer = request.form.get('correct_answer')
         q.explanation = request.form.get('explanation')
-        q.time_limit = request.form.get('time_limit', type=int)
+        q.time_limit = request.form.get('time_limit', type=int) or 10
         db.session.commit()
         flash('Question updated!', 'success')
         return redirect(url_for('admin_dashboard'))
@@ -264,7 +293,9 @@ def export_submissions():
     cw = csv.writer(si)
     cw.writerow(['Student', 'Question', 'Outcome', 'Timestamp'])
     for s in submissions:
-        cw.writerow([s.student.full_name, s.question.text[:50], 'PASS' if s.is_correct else 'FAIL', s.submitted_at])
+        student_name = s.student.full_name if s.student else "Deleted Student"
+        q_text = s.question.text[:50] if s.question else "Deleted Question"
+        cw.writerow([student_name, q_text, 'PASS' if s.is_correct else 'FAIL', s.submitted_at])
     output = si.getvalue()
     return send_file(BytesIO(output.encode()), mimetype='text/csv', as_attachment=True, download_name='submissions.csv')
 
@@ -282,7 +313,7 @@ def get_notifications():
         'student_name': n.student_name,
         'question_text': n.question_text or 'Question',
         'is_correct': n.is_correct,
-        'created_at': n.created_at.strftime('%H:%M')
+        'created_at': n.created_at.strftime('%H:%M') if n.created_at else '--:--'
     } for n in notifs]
     return jsonify({'count': len(notifs), 'notifications': notif_list})
 
@@ -298,6 +329,9 @@ def mark_notifications_read():
 @login_required
 def student_dashboard():
     today = datetime.utcnow().date()
+    # Fixed today filter for SQLite
+    start_of_today = datetime.combine(today, datetime.min.time())
+    
     questions = Question.query.order_by(Question.created_at.desc()).all()
     answers = Answer.query.filter_by(student_id=current_user.id).all()
     user_answers = {a.question_id: a for a in answers}
@@ -313,8 +347,8 @@ def student_dashboard():
         'correct': sum(1 for a in answers if a.is_correct),
         'incorrect': sum(1 for a in answers if not a.is_correct),
         'accuracy': (sum(1 for a in answers if a.is_correct) / len(answers) * 100) if answers else 0,
-        'today_solved': sum(1 for a in answers if a.submitted_at.date() == today),
-        'today_total': Question.query.filter(db.func.date(Question.created_at) == today).count(),
+        'today_solved': sum(1 for a in answers if a.submitted_at >= start_of_today),
+        'today_total': Question.query.filter(Question.created_at >= start_of_today).count(),
         'today_remaining': 0
     }
     stats['today_remaining'] = max(0, stats['today_total'] - stats['today_solved'])
@@ -331,8 +365,10 @@ def student_dashboard():
 @app.route('/student/start_attempt', methods=['POST'])
 @login_required
 def student_start_attempt():
-    data = request.get_json()
+    data = request.get_json() or {}
     question_id = data.get('question_id')
+    if not question_id: return jsonify({'error': 'Missing question_id'}), 400
+    
     attempt = Attempt.query.filter_by(student_id=current_user.id, question_id=question_id).first()
     if not attempt:
         attempt = Attempt(student_id=current_user.id, question_id=question_id)
@@ -359,10 +395,10 @@ def submit_answer():
     db.session.add(answer)
     
     notif = Notification(
-        message=f"Submission from {current_user.full_name}", 
+        message=f"Submission from {current_user.full_name or current_user.username}", 
         type='submission', 
         student_id=current_user.id, 
-        student_name=current_user.full_name, 
+        student_name=current_user.full_name or current_user.username, 
         question_id=q_id, 
         question_text=q.text[:50],
         is_correct=is_correct
@@ -374,4 +410,5 @@ def submit_answer():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    # Using threaded=True for better responsiveness
+    app.run(host="0.0.0.0", port=port, debug=True, threaded=True)
