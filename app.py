@@ -58,10 +58,26 @@ else:
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Enable Debugging globally so it shows up in Render/Gunicorn logs
+app.debug = True
+app.config['PROPAGATE_EXCEPTIONS'] = True
+
 from models import db, User, Question, Answer, Attempt, Classroom, MeetLink, Notification
 
 db.init_app(app)
 migrate = Migrate(app, db)
+
+# --- Startup Logging ---
+print("--- Application Startup ---")
+print(f"Environment: {'Render' if IS_RENDER else 'Local'}")
+if DATABASE_URL:
+    # Print masked URI (e.g. postgresql://user:***@host...)
+    parts = DATABASE_URL.split('@')
+    masked_uri = parts[0].split(':')[0] + "://***@" + parts[1] if len(parts) > 1 else "Invalid URI"
+    print(f"🔗 Database Dialect: {masked_uri}")
+else:
+    print("❌ No DATABASE_URL found")
+print("---------------------------")
 
 # --- Initialization ---
 def init_db():
